@@ -460,7 +460,7 @@ function render() {
     if (hasLine) {
       const ln = LINE[s.line.state] || ['', '?', '状态 ' + s.line.state];
       chip($('s-line'), ln[0], ln[1], ln[2]);
-      $('s-line-sub').textContent = '带速 ' + (s.line.speed || 0).toFixed(1) + ' mm/s' + (s.line.set ? '（设定 ' + s.line.set + '）' : '') +
+      $('s-line-sub').textContent = '带速 ' + (s.line.speed || 0).toFixed(1) + ' mm/s' + (s.line.set ? '（处理零件时设定 ' + s.line.set + '）' : '') +
           ' · 配方 ' + recipeName(s.line.recipe) + (s.line.alarm ? ' · 报警码 ' + s.line.alarm : '');
     }
   } else {
@@ -480,12 +480,19 @@ function render() {
     const box = $('cmd-btns'); box.textContent = '';
     const running = ln.state === 1;
     if (plain.length) box.append(ctlRow('线体', plain.map(c => ({ text: CMDS[c][0], click: () => sendCmd(c, CMDS[c][1], CMDS[c][0], CMDS[c][2]) }))));
-    if (speeds.length) box.append(ctlRow('带速（mm/s）', speeds.map(v => ({ text: String(v), on: Math.abs((ln.set || 0) - v) < 0.05,
-        click: () => sendCmd('speed', Math.round(v * 10), '带速 ' + v + ' mm/s', '把带速设为 ' + v + ' mm/s？' + (running ? '皮带会马上变速。' : '')) }))));
+    if (speeds.length) {
+      const row = ctlRow('处理零件时的带速（mm/s）', speeds.map(v => ({ text: String(v), on: Math.abs((ln.set || 0) - v) < 0.05,
+          click: () => sendCmd('speed', Math.round(v * 10), '带速 ' + v + ' mm/s', '把处理零件时的带速设为 ' + v + ' mm/s？空闲时主程序仍会自动提速。') })));
+      const note = document.createElement('div'); note.className = 'sub'; note.id = 'speed-note'; note.style.marginTop = '6px';
+      row.append(note); box.append(row);
+    }
     if (recipes.length) box.append(ctlRow('配方' + (running ? '（运行中不能切换，先暂停或停止）' : ''), recipes.map(r => ({
         text: r.name, on: r.id === ln.recipe, disabled: running || r.id === ln.recipe,
-        click: () => sendCmd('recipe', r.id, '切配方 ' + r.name,'切换到配方「' + r.name + '」？\n之后的齿轮按这个配方的尺寸判定，台上的齿轮不是这一种的会被判为尺寸不合格。演示完记得切回来。') }))));
+        click: () => sendCmd('recipe', r.id, '切配方 ' + r.name, '切换到配方「' + r.name + '」？\n之后的齿轮按这个配方的尺寸判定，台上的齿轮不是这一种的会被判为尺寸不合格。演示完记得切回来。') }))));
   }
+  const sn = $('speed-note');                // refreshed every second: the actual speed moves with the adaptation
+  if (sn) sn.textContent = '带上没有要处理的零件时，主程序会自动提速；有零件要抓或要分流时降到这里设定的速度，机械臂没准备好时还会再慢。现在实际 ' +
+      (ln.speed || 0).toFixed(1) + ' mm/s。';
   // banner: the one thing to look at first
   let b = null;
   if (!cfg.b || !cfg.p) b = ['info', '还没有设置', '在页面最下面的「连接设置」里填服务器地址和主题前缀。'];
